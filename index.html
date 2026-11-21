@@ -1,0 +1,971 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>額度顯示器｜T-QT Pro 實作教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f6f5f0;
+      --surface: #efede6;
+      --surface-code: #e7e4db;
+      --ink: #1a1c1e;
+      --muted: #595e64;
+      --line: #cfcbc0;
+      --line-strong: #9c978a;
+      --accent: #0f4c81;
+      --accent-soft: rgba(15, 76, 129, 0.08);
+      --warn: #8a4b08;
+      --warn-bg: rgba(138, 75, 8, 0.07);
+      --grid-line: rgba(26, 28, 30, 0.045);
+      --sans: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif;
+      --mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111315;
+        --surface: #181b1e;
+        --surface-code: #1d2125;
+        --ink: #e5e7eb;
+        --muted: #9ba1a8;
+        --line: #2b3036;
+        --line-strong: #4a525c;
+        --accent: #6cb4ee;
+        --accent-soft: rgba(108, 180, 238, 0.1);
+        --warn: #e0a458;
+        --warn-bg: rgba(224, 164, 88, 0.08);
+        --grid-line: rgba(229, 231, 235, 0.04);
+      }
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.75;
+      overflow-x: hidden;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      text-decoration-thickness: 1px;
+    }
+
+    a:hover {
+      text-decoration-thickness: 2px;
+    }
+
+    code, pre, .mono {
+      font-family: var(--mono);
+    }
+
+    code {
+      font-size: 0.875em;
+      background: var(--surface-code);
+      padding: 0.12em 0.38em;
+      border: 1px solid var(--line);
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    pre {
+      margin: 0.9rem 0 1.25rem;
+      padding: 0.9rem 1rem;
+      background: var(--surface-code);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--accent);
+      overflow-x: auto;
+      max-width: 100%;
+      line-height: 1.55;
+      font-size: 0.85rem;
+    }
+
+    pre code {
+      background: transparent;
+      border: 0;
+      padding: 0;
+      font-size: inherit;
+      overflow-wrap: normal;
+      word-break: normal;
+      white-space: pre;
+    }
+
+    .wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 1.25rem;
+    }
+
+    /* Blueprint / engineering sheet header */
+    .doc-header {
+      border-bottom: 1px solid var(--line-strong);
+      background-image:
+        linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+      background-size: 24px 24px;
+      padding: 2.25rem 0 1.75rem;
+    }
+
+    .doc-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.25rem;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+      margin-bottom: 0.75rem;
+    }
+
+    h1 {
+      margin: 0 0 0.75rem;
+      font-size: clamp(1.65rem, 4vw, 2.2rem);
+      line-height: 1.3;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .lead {
+      margin: 0;
+      color: var(--muted);
+      max-width: 64ch;
+      font-size: 1.02rem;
+    }
+
+    /* Table of contents */
+    .toc {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--line-strong);
+    }
+
+    .toc-title {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin: 0 0 0.5rem;
+      letter-spacing: 0.05em;
+    }
+
+    .toc-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem 1.4rem;
+    }
+
+    .toc-list a {
+      font-size: 0.92rem;
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+    }
+
+    .toc-list a:hover {
+      border-bottom-color: var(--accent);
+    }
+
+    .toc-num {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-right: 0.3rem;
+    }
+
+    /* Sections */
+    main {
+      padding: 1rem 0 3rem;
+    }
+
+    section {
+      padding: 2rem 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    section:last-of-type {
+      border-bottom: 0;
+    }
+
+    .sec-head {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      margin-bottom: 1.1rem;
+      padding-bottom: 0.45rem;
+      border-bottom: 1px solid var(--line-strong);
+    }
+
+    .sec-id {
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      color: var(--accent);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.3rem;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    h3 {
+      margin: 1.5rem 0 0.6rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    p {
+      margin: 0 0 0.9rem;
+    }
+
+    ul, ol {
+      margin: 0 0 1rem;
+      padding-left: 1.35rem;
+    }
+
+    li {
+      margin-bottom: 0.45rem;
+    }
+
+    /* Spec table */
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+      margin: 1rem 0 1.4rem;
+    }
+
+    .spec-cell {
+      padding: 0.65rem 0.85rem;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+      min-width: 0;
+    }
+
+    .spec-label {
+      display: block;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 0.2rem;
+    }
+
+    .spec-val {
+      font-size: 0.93rem;
+      overflow-wrap: anywhere;
+    }
+
+    /* Figures */
+    figure {
+      margin: 1.25rem 0;
+      padding: 0.75rem;
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    figure img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      margin: 0 auto;
+      image-rendering: pixelated;
+      border: 1px solid var(--line);
+    }
+
+    figcaption {
+      margin-top: 0.6rem;
+      font-size: 0.86rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    figcaption .fig-tag {
+      font-family: var(--mono);
+      color: var(--ink);
+      margin-right: 0.35rem;
+    }
+
+    .screen-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .screen-grid figure {
+      margin: 0;
+      min-width: 0;
+    }
+
+    /* Architecture diagram */
+    .arch-box {
+      margin: 1.25rem 0;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .arch-box svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .arch-caption {
+      margin: 0.65rem 0 0;
+      font-size: 0.84rem;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .callout {
+      margin: 1rem 0;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--accent);
+      background: var(--accent-soft);
+      font-size: 0.94rem;
+    }
+
+    .callout-warn {
+      border-left-color: var(--warn);
+      background: var(--warn-bg);
+    }
+
+    /* Step list */
+    .steps {
+      list-style: none;
+      padding: 0;
+      margin: 1rem 0 0;
+    }
+
+    .step {
+      position: relative;
+      padding: 0.9rem 0 0.9rem 2.4rem;
+      border-top: 1px solid var(--line);
+    }
+
+    .step:last-child {
+      border-bottom: 1px solid var(--line);
+    }
+
+    .step-num {
+      position: absolute;
+      left: 0;
+      top: 0.95rem;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      width: 1.9rem;
+    }
+
+    .step-title {
+      font-weight: 700;
+      margin: 0 0 0.4rem;
+      font-size: 1.02rem;
+    }
+
+    /* Failure log */
+    .fail-list {
+      margin: 1rem 0 0;
+      border-top: 1px solid var(--line-strong);
+    }
+
+    .fail-item {
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .fail-head {
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+      margin-bottom: 0.55rem;
+    }
+
+    .fail-code {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      padding: 0.1rem 0.4rem;
+      border: 1px solid var(--line-strong);
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .fail-title {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .fail-rows {
+      margin: 0;
+      display: grid;
+      grid-template-columns: 3.8rem minmax(0, 1fr);
+      gap: 0.35rem 0.75rem;
+      font-size: 0.94rem;
+    }
+
+    .fail-rows dt {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--muted);
+      padding-top: 0.15rem;
+    }
+
+    .fail-rows dd {
+      margin: 0;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    /* File manifest */
+    .file-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.92rem;
+    }
+
+    .file-table th,
+    .file-table td {
+      text-align: left;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    .file-table th {
+      background: var(--surface);
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .file-path {
+      font-family: var(--mono);
+      font-size: 0.84rem;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--line-strong);
+      padding: 1.75rem 0 2.5rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .footer-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0.75rem 1.5rem;
+    }
+
+    @media (max-width: 600px) {
+      .spec-grid,
+      .screen-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .step {
+        padding-left: 0;
+        padding-top: 2.1rem;
+      }
+
+      .step-num {
+        top: 0.75rem;
+      }
+
+      .file-table,
+      .file-table thead,
+      .file-table tbody,
+      .file-table th,
+      .file-table td,
+      .file-table tr {
+        display: block;
+      }
+
+      .file-table thead {
+        display: none;
+      }
+
+      .file-table tr {
+        border: 1px solid var(--line);
+        margin-bottom: 0.65rem;
+        background: var(--surface);
+      }
+
+      .file-table td {
+        border: 0;
+        border-bottom: 1px dashed var(--line);
+        padding: 0.5rem 0.75rem;
+      }
+
+      .file-table td:last-child {
+        border-bottom: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="doc-header">
+    <div class="wrap">
+      <div class="doc-meta">
+        <span>SPEC // LILYGO T-QT Pro</span>
+        <span>DISP // GC9107 128×128</span>
+        <span>HTTP // :8817/meter.json</span>
+      </div>
+      <h1>額度顯示器：T-QT Pro 桌面實作教學</h1>
+      <p class="lead">
+        用一塊拇指大小的 LILYGO T-QT Pro 開發板放在桌上，透過家裡 Wi-Fi 向自己的電腦讀取 AI 工具剩餘額度與用量，四個頁面自動輪播，不必一直切視窗確認。
+      </p>
+      <nav class="toc" aria-label="頁面目錄">
+        <p class="toc-title">INDEX / 目錄</p>
+        <ul class="toc-list">
+          <li><a href="#overview"><span class="toc-num">01</span>成品與畫面</a></li>
+          <li><a href="#architecture"><span class="toc-num">02</span>架構與資料流</a></li>
+          <li><a href="#build"><span class="toc-num">03</span>動手做</a></li>
+          <li><a href="#failures"><span class="toc-num">04</span>失敗路徑</a></li>
+          <li><a href="#downloads"><span class="toc-num">05</span>下載程式</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <section id="overview">
+      <div class="sec-head">
+        <span class="sec-id">01</span>
+        <h2>成品與四頁畫面</h2>
+      </div>
+
+      <p>
+        這台額度顯示器以 LILYGO T-QT Pro 為核心，插上 USB-C 供電就能放在螢幕下方。板子每 60 秒向自己電腦上的資料服務請求一次最新狀態，四個資訊頁每 8 秒自動輪播一次。
+      </p>
+
+      <div class="spec-grid">
+        <div class="spec-cell">
+          <span class="spec-label">CORE / 核心晶片</span>
+          <span class="spec-val">LILYGO T-QT Pro（ESP32-S3，內建 4MB Flash、2MB PSRAM）</span>
+        </div>
+        <div class="spec-cell">
+          <span class="spec-label">DISPLAY / 螢幕規格</span>
+          <span class="spec-val">0.85 吋 GC9107 彩色螢幕，解析度 128×128</span>
+        </div>
+        <div class="spec-cell">
+          <span class="spec-label">BUTTONS / 實體按鍵</span>
+          <span class="spec-val">左鍵（IO0）切下一頁；右鍵（IO47）暫停或恢復輪播</span>
+        </div>
+        <div class="spec-cell">
+          <span class="spec-label">POWER &amp; REFRESH / 供電與更新</span>
+          <span class="spec-val">USB-C 供電；每 60 秒向電腦取資料，畫面每 8 秒輪播</span>
+        </div>
+      </div>
+
+      <figure>
+        <img src="img/tqt_all.png" alt="額度顯示器四個頁面的並排總覽圖，由左至右依序為 Gemini 組、Claude／GPT 組、其他用量與連線狀態頁。">
+        <figcaption>
+          <span class="fig-tag">[FIG 00]</span>成品四個頁面的並排總覽，涵蓋主要模型額度、其他工具用量與板子連線狀態。
+        </figcaption>
+      </figure>
+
+      <div class="screen-grid">
+        <figure>
+          <img src="img/tqt_page0.png" alt="第 1 頁 Gemini 組畫面：上方與中間顯示週額度與 5 小時額度的剩餘百分比橫條，下方標示重置 6天21時這類倒數時間。">
+          <figcaption>
+            <span class="fig-tag">[PAGE 0]</span><strong>Gemini 組：</strong>顯示週額度與 5 小時額度的剩餘百分比橫條（綠 ≥50%、黃 ≥20%、紅 &lt;20%），下方寫「重置 6天21時」這類倒數時間。
+          </figcaption>
+        </figure>
+
+        <figure>
+          <img src="img/tqt_page1.png" alt="第 2 頁 Claude／GPT 組畫面：呈現週額度與 5 小時額度的百分比橫條；當週額度用完時，5 小時進度條變灰並標示週已用完。">
+          <figcaption>
+            <span class="fig-tag">[PAGE 1]</span><strong>Claude／GPT 組：</strong>格式與第一頁相同；當週額度用完時，5 小時那一條會變成灰色並標示「週已用完」。
+          </figcaption>
+        </figure>
+
+        <figure>
+          <img src="img/tqt_page2.png" alt="第 3 頁其他用量畫面：列出 Antigravity 生圖剩餘張數、Colab 運算單元餘額，以及 Claude Code 今日用量的 token 數與呼叫次數。">
+          <figcaption>
+            <span class="fig-tag">[PAGE 2]</span><strong>其他：</strong>顯示 Antigravity 生圖剩餘張數、Colab 運算單元餘額，以及 Claude Code 今日用量（token 數與呼叫次數；Claude Code 只能算用掉多少，沒有剩餘可查）。
+          </figcaption>
+        </figure>
+
+        <figure>
+          <img src="img/tqt_page3.png" alt="第 4 頁連線狀態畫面：顯示 Wi-Fi 訊號、板子 IP、電腦 IP、上次成功時間與目前連線狀態。">
+          <figcaption>
+            <span class="fig-tag">[PAGE 3]</span><strong>連線狀態：</strong>顯示 Wi-Fi 訊號、板子 IP、電腦 IP、上次成功時間與狀態，方便確認網路是否正常。
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <div class="sec-head">
+        <span class="sec-id">02</span>
+        <h2>系統架構與資料來源</h2>
+      </div>
+
+      <p>
+        整個系統刻意把「去哪裡查資料」留在電腦端處理，開發板只做一件事：透過家裡 Wi-Fi 向電腦取回整理好的單一 JSON 檔，然後畫在 128×128 螢幕上。
+      </p>
+
+      <div class="arch-box">
+        <svg viewBox="0 0 760 310" role="img" aria-label="資料流架構圖：本機資料來源由 server/meter_server.py 整理成 HTTP 8817 埠的 /meter.json，經家裡 Wi-Fi 送給 T-QT Pro 板子繪製在 GC9107 螢幕上。">
+          <style>
+            .s-box { fill: var(--bg); stroke: var(--line-strong); stroke-width: 1.5; }
+            .s-accent { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+            .s-title { font-family: var(--mono); font-size: 13px; font-weight: 700; fill: var(--ink); }
+            .s-txt { font-family: var(--sans); font-size: 12px; fill: var(--muted); }
+            .s-mono { font-family: var(--mono); font-size: 11px; fill: var(--accent); }
+            .s-line { stroke: var(--line-strong); stroke-width: 1.5; fill: none; }
+            .s-dash { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 5 4; fill: none; }
+          </style>
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--line-strong)"/>
+            </marker>
+            <marker id="arrow-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--accent)"/>
+            </marker>
+          </defs>
+
+          <!-- Left: Data sources on Mac -->
+          <rect x="14" y="16" width="242" height="58" class="s-box"/>
+          <text x="26" y="38" class="s-title">quota_cache.json</text>
+          <text x="26" y="57" class="s-txt">antigravity-bridge 每 5 分鐘更新</text>
+
+          <rect x="14" y="88" width="242" height="54" class="s-box"/>
+          <text x="26" y="110" class="s-title">本機生圖帳本</text>
+          <text x="26" y="129" class="s-txt">Antigravity 生圖剩餘張數</text>
+
+          <rect x="14" y="156" width="242" height="58" class="s-box"/>
+          <text x="26" y="178" class="s-title">本機對話紀錄</text>
+          <text x="26" y="197" class="s-txt">Claude Code 10 分鐘掃一次（約 15 秒）</text>
+
+          <rect x="14" y="228" width="242" height="54" class="s-box"/>
+          <text x="26" y="250" class="s-title">Colab 運算單元</text>
+          <text x="26" y="269" class="s-txt">每 30 分鐘查詢一次餘額</text>
+
+          <!-- Arrows to server -->
+          <path d="M 256 45 L 298 115" class="s-line" marker-end="url(#arrow)"/>
+          <path d="M 256 115 L 298 135" class="s-line" marker-end="url(#arrow)"/>
+          <path d="M 256 185 L 298 165" class="s-line" marker-end="url(#arrow)"/>
+          <path d="M 256 255 L 298 185" class="s-line" marker-end="url(#arrow)"/>
+
+          <!-- Middle: meter_server.py -->
+          <rect x="302" y="76" width="206" height="150" class="s-accent"/>
+          <text x="316" y="104" class="s-title">server/meter_server.py</text>
+          <text x="316" y="126" class="s-txt">Python 標準函式庫 HTTP 服務</text>
+          <text x="316" y="148" class="s-mono">埠 8817 → /meter.json</text>
+          <text x="316" y="172" class="s-txt">僅回應區網與本機請求</text>
+          <text x="316" y="194" class="s-txt">不自己呼叫 agy 指令</text>
+
+          <!-- Wi-Fi link -->
+          <path d="M 508 150 L 570 150" class="s-dash" marker-end="url(#arrow-acc)"/>
+          <text x="539" y="138" text-anchor="middle" class="s-mono">Wi-Fi</text>
+          <text x="539" y="168" text-anchor="middle" class="s-txt">60s</text>
+
+          <!-- Right: T-QT Pro -->
+          <rect x="574" y="88" width="172" height="126" class="s-box"/>
+          <text x="588" y="116" class="s-title">LILYGO T-QT Pro</text>
+          <text x="588" y="138" class="s-txt">HTTP 讀取 /meter.json</text>
+          <text x="588" y="158" class="s-txt">繪製 GC9107 128×128</text>
+          <text x="588" y="178" class="s-txt">不連 Google、不存金鑰</text>
+          <text x="588" y="198" class="s-mono">離線時每 20s 重試</text>
+        </svg>
+        <p class="arch-caption">ARCHITECTURE // Mac 資料彙整 → 區網 HTTP :8817/meter.json → T-QT Pro</p>
+      </div>
+
+      <ul>
+        <li>
+          <strong>資料服務（<code>server/meter_server.py</code>）：</strong>只使用 Python 標準函式庫，開啟 HTTP 埠 <code>8817</code>，並且只回應區網與本機連線，整理成 <code>/meter.json</code> 提供讀取。
+        </li>
+        <li>
+          <strong>Antigravity 兩組額度：</strong>直接讀取開源專案 <a href="https://github.com/henrychao521/antigravity-bridge" target="_blank" rel="noopener">antigravity-bridge</a> 的 <code>quota_cache.json</code>（由選單列小工具每 5 分鐘更新一次）。資料服務<strong>刻意不自己呼叫 <code>agy</code> 指令</strong>，避免在斷網或登入失效時反覆刷新權杖，把原本的登入狀態弄壞。
+        </li>
+        <li>
+          <strong>其他三項資料來源：</strong>生圖剩餘張數讀取本機帳本；Claude Code 用量掃描本機對話紀錄（掃一次約 15 秒，每 10 分鐘計算一次）；Colab 運算單元餘額每 30 分鐘查一次。
+        </li>
+        <li>
+          <strong>安全與離線行為：</strong>板子只連自己的電腦，不連 Google，板子上也不放任何 API 金鑰。當電腦不在家或進入睡眠時，板子右上角會顯示「離線」，並每 20 秒自動重試。
+        </li>
+      </ul>
+    </section>
+
+    <section id="build">
+      <div class="sec-head">
+        <span class="sec-id">03</span>
+        <h2>動手做：從環境到驗收</h2>
+      </div>
+
+      <ol class="steps">
+        <li class="step">
+          <span class="step-num">01</span>
+          <p class="step-title">準備硬體與 Arduino 開發環境</p>
+          <p>
+            準備一片 LILYGO T-QT Pro 與一條<strong>能傳資料的 USB-C 線</strong>（純充電線無法燒錄）。電腦端安裝 Arduino IDE 或 <code>arduino-cli</code>，接著安裝 ESP32 開發板套件 <strong>3.3 版</strong>，並裝好兩個函式庫：<code>LovyanGFX</code>、<code>ArduinoJson</code>。
+          </p>
+        </li>
+
+        <li class="step">
+          <span class="step-num">02</span>
+          <p class="step-title">建立設定檔 <code>secrets.h</code></p>
+          <p>
+            複製範本 <code>firmware/token_meter/secrets.example.h</code> 成同一資料夾下的 <code>secrets.h</code>，填入家裡 Wi-Fi 名稱與密碼、OTA 更新密碼、電腦的區網名稱以及備用 IP。記得不要把 <code>secrets.h</code> 放上 GitHub。
+          </p>
+          <p>在 macOS 終端機可以用以下指令查電腦的區網名稱：</p>
+          <pre><code>scutil --get LocalHostName</code></pre>
+        </li>
+
+        <li class="step">
+          <span class="step-num">03</span>
+          <p class="step-title">設定編譯參數（FQBN）</p>
+          <p>
+            這塊板子內建 4MB Flash 與 2MB PSRAM，使用 <code>arduino-cli</code> 編譯時請指定完整 FQBN（分區選用 <code>min_spiffs</code>）：
+          </p>
+          <pre><code>esp32:esp32:esp32s3:CDCOnBoot=cdc,USBMode=hwcdc,FlashSize=4M,PSRAM=enabled,PartitionScheme=min_spiffs</code></pre>
+        </li>
+
+        <li class="step">
+          <span class="step-num">04</span>
+          <p class="step-title">第一次用 USB 燒錄韌體</p>
+          <p>
+            首次燒錄必須透過 USB 線：先<strong>先拔掉 USB 線，按住左鍵（BOOT／IO0）不放再插上 USB 線，插好後放開</strong>，讓板子進入燒錄模式。燒錄完成後板子會停在下載模式，可用 <code>esptool ... --after watchdog-reset</code> 指令讓它重開，或把 USB 線拔掉重插讓它開機（T-QT Pro 沒有 RST 鍵）。
+          </p>
+        </li>
+
+        <li class="step">
+          <span class="step-num">05</span>
+          <p class="step-title">啟動電腦端資料服務</p>
+          <p>在電腦執行資料服務程式：</p>
+          <pre><code>python3 server/meter_server.py</code></pre>
+          <p>
+            接著在瀏覽器打開 <code>http://localhost:8817/meter.json</code>，確認能正常看到輸出的 JSON 資料。確認無誤後，若希望開機常駐背景執行，可利用 macOS 的 <code>launchd</code> 設定。
+          </p>
+        </li>
+
+        <li class="step">
+          <span class="step-num">06</span>
+          <p class="step-title">修改畫面文字後，重產中文字型子集</p>
+          <p>
+            板子 Flash 空間有限，韌體裡只包入畫面上真正用到的中文字元。只要改過 <code>token_meter.ino</code> 裡的中文顯示文字，就執行工具腳本重新產生 <code>cubic11_meter.h</code>（字級設為 <code>12</code> px 才會剛好對齊點陣像素格）：
+          </p>
+          <pre><code>python3 tools/make_u8g2_font.py --ttf tools/Cubic_11.ttf --size 12 --chars-from firmware/token_meter/token_meter.ino --name u8g2_font_cubic11_meter --out firmware/token_meter/cubic11_meter.h</code></pre>
+        </li>
+
+        <li class="step">
+          <span class="step-num">07</span>
+          <p class="step-title">之後改程式不必插線：兩種 OTA 無線更新</p>
+          <p>首次 USB 燒錄完成後，往後修改韌體可用 Wi-Fi 進行 OTA 更新，兩種方式都需要填入你在 <code>secrets.h</code> 設定的 OTA 密碼：</p>
+          <ul>
+            <li>
+              <strong>從電腦指令行（<code>espota</code>）：</strong>偶爾若遇到 <code>Broken pipe</code> 中斷，重新執行一次即可。
+              <pre><code>python3 espota.py -i &lt;板子IP&gt; -p 3232 -a &lt;OTA密碼&gt; -f token_meter.ino.bin</code></pre>
+            </li>
+            <li>
+              <strong>從手機或電腦瀏覽器（<code>/update</code>）：</strong>打開 <code>http://token-meter.local/update</code>，帳號填 <code>admin</code>，密碼填 OTA 密碼，檔案請選 <code>token_meter.ino.bin</code>（注意不要選成 <code>merged.bin</code>）上傳。
+            </li>
+          </ul>
+        </li>
+
+        <li class="step">
+          <span class="step-num">08</span>
+          <p class="step-title">驗收畫面</p>
+          <p>
+            在瀏覽器打開 <code>http://token-meter.local/screen.bmp?page=0</code>（頁碼可換成 <code>0</code>～<code>3</code>），就能直接取回板子目前的畫面截圖，不必拿手機對著小螢幕拍照。
+          </p>
+          <div class="callout callout-warn">
+            <strong>提醒：</strong><code>screen.bmp</code> 抓回來的是記憶體裡的畫面緩衝區內容，送完之後實體螢幕還是要親眼看一次，確認顯示沒有異常。
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <section id="failures">
+      <div class="sec-head">
+        <span class="sec-id">04</span>
+        <h2>失敗路徑與除錯筆記</h2>
+      </div>
+
+      <p>
+        實作過程不像步驟清單那樣一路順暢，以下保留每一條實際踩過的失敗路徑（嘗試 → 失敗 → 改用 → 學到），碰到類似狀況時可以少走冤枉路。
+      </p>
+
+      <div class="fail-list">
+        <article class="fail-item">
+          <div class="fail-head">
+            <span class="fail-code">FAIL-01</span>
+            <span class="fail-title">實體螢幕出現直條紋、下半部沒畫完</span>
+          </div>
+          <dl class="fail-rows">
+            <dt>嘗試</dt><dd>第一版先用 T-Display S3（170×320）開發，看到實體螢幕出現直條紋且下半部沒畫完，懷疑是 PSRAM 經並列匯流排 DMA 送畫面時出錯，改了兩次程式。</dd>
+            <dt>失敗</dt><dd>改程式之後畫面仍然不正常（其中一次還變成全黑，見 FAIL-02）。</dd>
+            <dt>改用</dt><dd>拿起板子仔細看，才發現是<strong>螢幕本身破了</strong>，換成 T-QT Pro。</dd>
+            <dt>學到</dt><dd>截圖正常、實體螢幕異常時，先檢查硬體再改程式。</dd>
+          </dl>
+        </article>
+
+        <article class="fail-item">
+          <div class="fail-head">
+            <span class="fail-code">FAIL-02</span>
+            <span class="fail-title">螢幕整片全黑，連截圖端點也是黑的</span>
+          </div>
+          <dl class="fail-rows">
+            <dt>嘗試</dt><dd>修改程式時把註解寫在同一行，結果 <code>// …</code> 後面的 <code>createSprite()</code> 也一起被註解掉。</dd>
+            <dt>失敗</dt><dd>畫面緩衝沒有建立，螢幕開機後一片全黑。</dd>
+            <dt>改用</dt><dd>從板子的截圖端點抓回畫面，發現截圖一樣全黑，才確定是程式根本沒畫，不是螢幕壞掉，修回該行程式。</dd>
+            <dt>學到</dt><dd>截圖端點可以把「程式沒畫」和「畫面送不到螢幕」這兩種問題分開判斷。</dd>
+          </dl>
+        </article>
+
+        <article class="fail-item">
+          <div class="fail-head">
+            <span class="fail-code">FAIL-03</span>
+            <span class="fail-title">編譯出現 'Bucket' does not name a type</span>
+          </div>
+          <dl class="fail-rows">
+            <dt>嘗試</dt><dd>原本把自訂資料結構與函式全部寫在同一個 <code>.ino</code> 檔裡。</dd>
+            <dt>失敗</dt><dd>Arduino 前處理器會自動產生函式宣告並插在 <code>.ino</code> 中結構定義之前，導致編譯報錯 <code>'Bucket' does not name a type</code>。</dd>
+            <dt>改用</dt><dd>把結構定義移到獨立的標頭檔 <code>meter_types.h</code> 再引入。</dd>
+            <dt>學到</dt><dd><code>.ino</code> 裡的函式參數或回傳值用到自訂結構時，將型別獨立放到 <code>.h</code> 檔最穩。</dd>
+          </dl>
+        </article>
+
+        <article class="fail-item">
+          <div class="fail-head">
+            <span class="fail-code">FAIL-04</span>
+            <span class="fail-title">備份整顆板子 Flash 中途斷線</span>
+          </div>
+          <dl class="fail-rows">
+            <dt>嘗試</dt><dd>覆寫前備份板子上原本的程式時，一口氣讀取整個 Flash。</dd>
+            <dt>失敗</dt><dd>傳輸途中經常中途斷線，拿不到完整備份。</dd>
+            <dt>改用</dt><dd>改成每次只讀 <code>256KB</code>，少數一直讀不到的區塊改加 <code>--no-stub</code>，最後再用 <code>verify-flash</code> 比對整份內容是否一致。</dd>
+            <dt>學到</dt><dd>大範圍讀取不穩時，切成 256KB 小段、讀不到的區塊改用無 stub 模式，最後整份校驗，才能確保備份沒缺損。</dd>
+          </dl>
+        </article>
+
+        <article class="fail-item">
+          <div class="fail-head">
+            <span class="fail-code">FAIL-05</span>
+            <span class="fail-title">本機測試資料服務回傳 404，區網 IP 卻正常</span>
+          </div>
+          <dl class="fail-rows">
+            <dt>嘗試</dt><dd>資料服務一開始嘗試綁定電腦上的 <code>8790</code> 與 <code>8795</code> 埠。</dd>
+            <dt>失敗</dt><dd>這兩個埠早已被其他服務占用，其中一個只聽本機介面，導致用區網 IP 測會通、用本機測卻回 404。</dd>
+            <dt>改用</dt><dd>用 <code>lsof</code> 查出空著沒人用的埠，改綁 <code>8817</code>。</dd>
+            <dt>學到</dt><dd>本機開發開 HTTP 服務前，先用 <code>lsof</code> 確認埠號沒有被其他常駐程式占用。</dd>
+          </dl>
+        </article>
+
+        <article class="fail-item">
+          <div class="fail-head">
+            <span class="fail-code">FAIL-06</span>
+            <span class="fail-title">大數字後面的「萬」字顯示成方框</span>
+          </div>
+          <dl class="fail-rows">
+            <dt>嘗試</dt><dd>用大尺寸的數字字型直接把帶單位的文字（例如幾「萬」token）一起印在螢幕上。</dd>
+            <dt>失敗</dt><dd>大數字字型裡只有英數字，沒有收錄中文字，結果「萬」字變成方框。</dd>
+            <dt>改用</dt><dd>把數字和中文單位拆開，各自切換對應字型分開畫。</dd>
+            <dt>學到</dt><dd>嵌入式畫面中，大號英數字型與點陣中文字型要分開繪製，才不會缺字變方框。</dd>
+          </dl>
+        </article>
+      </div>
+    </section>
+
+    <section id="downloads">
+      <div class="sec-head">
+        <span class="sec-id">05</span>
+        <h2>下載程式與檔案清單</h2>
+      </div>
+
+      <p>以下為本教學對應的儲存庫檔案相對路徑，可直接點擊瀏覽或下載：</p>
+
+      <table class="file-table">
+        <thead>
+          <tr>
+            <th>檔案路徑</th>
+            <th>用途說明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="file-path"><a href="firmware/token_meter/token_meter.ino">firmware/token_meter/token_meter.ino</a></td>
+            <td>T-QT Pro 韌體主程式（畫面繪製、輪播、按鍵與 HTTP 取資料）</td>
+          </tr>
+          <tr>
+            <td class="file-path"><a href="firmware/token_meter/meter_types.h">firmware/token_meter/meter_types.h</a></td>
+            <td>獨立定義資料結構，避開 Arduino 自動產生函式宣告造成的型別順序問題</td>
+          </tr>
+          <tr>
+            <td class="file-path"><a href="firmware/token_meter/cubic11_meter.h">firmware/token_meter/cubic11_meter.h</a></td>
+            <td>由腳本抽取出來的 U8g2 中文字型子集標頭檔</td>
+          </tr>
+          <tr>
+            <td class="file-path"><a href="firmware/token_meter/secrets.example.h">firmware/token_meter/secrets.example.h</a></td>
+            <td>Wi-Fi、OTA 密碼與電腦主機名稱設定範本（請複製為 <code>secrets.h</code> 使用）</td>
+          </tr>
+          <tr>
+            <td class="file-path"><a href="server/meter_server.py">server/meter_server.py</a></td>
+            <td>電腦端資料服務（Python 標準函式庫，埠 8817，輸出 <code>/meter.json</code>）</td>
+          </tr>
+          <tr>
+            <td class="file-path"><a href="tools/make_u8g2_font.py">tools/make_u8g2_font.py</a></td>
+            <td>將 TTF 字型依程式內實際使用的字元轉成 U8g2 點陣字型子集的工具</td>
+          </tr>
+          <tr>
+            <td class="file-path"><a href="tools/Cubic_11.ttf">tools/Cubic_11.ttf</a></td>
+            <td>俐方體11號 Cubic 11 點陣風格繁體中文字型檔</td>
+          </tr>
+          <tr>
+            <td class="file-path"><a href="tools/Cubic_11_OFL.txt">tools/Cubic_11_OFL.txt</a></td>
+            <td>俐方體11號 Cubic 11 的 SIL Open Font License 1.1 授權全文</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="wrap footer-grid">
+      <div>
+        作者：趙珩宇 · <a href="https://henrychao521.github.io/">https://henrychao521.github.io/</a>
+      </div>
+      <div>
+        中文字型：俐方體11號 Cubic 11，依 SIL Open Font License 1.1 授權使用（見 <a href="tools/Cubic_11_OFL.txt">tools/Cubic_11_OFL.txt</a>）。
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

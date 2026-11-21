@@ -1,0 +1,4 @@
+__pycache__/
+secrets.h
+build/
+.DS_Store
