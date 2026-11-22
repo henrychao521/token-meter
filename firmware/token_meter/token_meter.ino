@@ -7,7 +7,7 @@
  *   1. Gemini 組：週額度、5 小時額度＋重置倒數
  *   2. Claude／GPT 組：同上（週額度用完時 5 小時那條變灰）
  *   3. 其他：Antigravity 生圖剩餘、Colab 運算單元、Claude Code 今日用量
- *   4. 連線狀態
+ *   4. 連線狀態（2026-11-22 起共六頁：Gemini、Claude／GPT、其他、Antigravity 模型、其他模型、連線）
  * 板子只連 Mac，不碰 Google、不放 API 金鑰；Wi-Fi 等個人設定在 secrets.h（見 secrets.example.h）。
  *
  * 按鍵：左鍵（IO0）＝下一頁；右鍵（IO47）＝暫停／恢復輪播。
@@ -36,7 +36,7 @@ static IPAddress MBP_FALLBACK(MBP_FALLBACK_IP);
 static const uint16_t MBP_PORT = 8817;
 static const uint32_t FETCH_MS = 60000;
 static const uint32_t PAGE_MS = 8000;
-static const int W = 128, H = 128, PAGES = 4;
+static const int W = 128, H = 128, PAGES = 6;
 
 // ───── 螢幕（T-QT Pro）─────
 #define PIN_MOSI 2
@@ -100,6 +100,7 @@ struct Meter {
   bool imgOk = false; int imgLeft = -1; bool imgEx = false;
   bool claudeOk = false; long claudeCalls = 0; double claudeTok = 0;
   bool colabOk = false; double colabBal = 0; int colabActive = 0;
+  String mAgy[12], mClaude[8], mLocal[6]; int nAgy = 0, nClaude = 0, nLocal = 0;
 } M;
 int32_t epochOffset = 0;        // 伺服器時間 − millis()/1000
 uint32_t lastOkMs = 0, lastTryMs = 0;
@@ -146,7 +147,7 @@ void header(const String& title, uint16_t col) {
   zhText(title, 3, 2, col);
   String r = !M.ok ? "離線" : (M.zoneBlocked ? "暫停" : ago(M.agyFetched));
   zhRight(r, W - 3, 2, (!M.ok || M.zoneBlocked) ? C_YEL : C_DIM);
-  for (int i = 0; i < PAGES; i++) fb.fillCircle(W / 2 - 9 + i * 6, H - 3, 1, i == page ? C_FG : C_DIM);
+  for (int i = 0; i < PAGES; i++) fb.fillCircle(W / 2 - (PAGES - 1) * 3 + i * 6, H - 2, 1, i == page ? C_FG : C_DIM);
 }
 
 // 一段：標籤＋百分比、橫條、重置倒數
@@ -162,7 +163,7 @@ void meterBlock(const char* label, const Bucket& b, int y, bool capped) {
   zhText(cd, 3, y + 32, C_DIM);
 }
 
-// ───── 四頁 ─────
+// ───── 各頁 ─────
 void pageGroup(const char* name, const Bucket& wk, const Bucket& h5) {
   header(name, C_CYAN);
   meterBlock("週額度", wk, 17, false);
@@ -197,6 +198,18 @@ void pageOther() {
   } else zhText("無資料", 3, 85, C_DIM);
 }
 
+void listPage(const char* title, const char* sub1, String* a, int na, const char* sub2, String* b, int nb) {
+  header(title, C_CYAN);
+  int y = 17;
+  if (sub1) { zhText(sub1, 3, y, C_YEL); y += 12; }
+  for (int i = 0; i < na && y < H - 14; i++, y += 12) zhText(a[i], 6, y, C_FG);
+  if (sub2 && nb) {
+    y += 2; zhText(sub2, 3, y, C_YEL); y += 12;
+    for (int i = 0; i < nb && y < H - 14; i++, y += 12) zhText(b[i], 6, y, C_FG);
+  }
+  if (!na && !nb) zhText("無資料", 3, 30, C_DIM);
+}
+
 void pageStatus() {
   header("連線", C_CYAN);
   int y = 18;
@@ -215,6 +228,8 @@ void render() {
   if (page == 0) pageGroup("Gemini", M.gWk, M.g5h);
   else if (page == 1) pageGroup("Claude／GPT", M.tWk, M.t5h);
   else if (page == 2) pageOther();
+  else if (page == 3) listPage("Antigravity", nullptr, M.mAgy, M.nAgy, nullptr, nullptr, 0);
+  else if (page == 4) listPage("其他模型", "Claude Code", M.mClaude, M.nClaude, "本機 Ollama", M.mLocal, M.nLocal);
   else pageStatus();
   flush();
 }
@@ -270,6 +285,11 @@ void fetch() {
   M.claudeOk = c["ok"] | false; M.claudeCalls = c["calls"] | 0L; M.claudeTok = c["billable"] | 0.0;
   JsonVariant co = d["colab"];
   M.colabOk = co["ok"] | false; M.colabBal = co["balance"] | 0.0; M.colabActive = co["active"] | 0;
+  JsonVariant mo = d["models"];
+  auto fill = [](JsonVariant arr, String* dst, int cap, int& n) {
+    n = 0; for (JsonVariant v : arr.as<JsonArray>()) { if (n >= cap) break; dst[n++] = (const char*)(v | ""); }
+  };
+  fill(mo["agy"], M.mAgy, 12, M.nAgy); fill(mo["claude"], M.mClaude, 8, M.nClaude); fill(mo["local"], M.mLocal, 6, M.nLocal);
   M.ok = true; lastOkMs = millis(); lastErr = "";
 }
 

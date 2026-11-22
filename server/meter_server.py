@@ -7,6 +7,7 @@
   - 生圖剩餘張數：agy_meter.image_quota()（本機帳本，不連網）
   - Claude Code 今日用量：claude_meter.summary()（掃描對話紀錄約 15 秒，10 分鐘算一次）
   - Colab 運算單元：colab_job.usage()（約 3 秒，30 分鐘一次）
+  - 可用模型：Antigravity（capabilities.json）、Claude Code 選單（model-catalog 快取）、本機 Ollama（30 分鐘一次）
 只回應區網與本機位址。
 """
 import ipaddress, json, os, subprocess, sys, threading, time
@@ -19,7 +20,7 @@ COLAB = Path(os.environ.get("COLAB_BRIDGE", "/Users/Shared/colab-bridge"))      
 PORT = 8817
 sys.path.insert(0, str(BRIDGE))
 
-STATE = {"claude": None, "claude_at": 0, "colab": None, "colab_at": 0}
+STATE = {"claude": None, "claude_at": 0, "colab": None, "colab_at": 0, "models": None, "models_at": 0}
 LOCK = threading.Lock()
 
 
@@ -105,6 +106,49 @@ def refresh_colab():
         STATE["colab"], STATE["colab_at"] = res, int(time.time())
 
 
+def _agy_models():
+    """Antigravity 可用模型：讀 capabilities.json（agy_meter 每天盤點一次的快取），同款不同檔位合併。"""
+    try:
+        d = json.loads((BRIDGE / "capabilities.json").read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    out, orch = [], 0
+    for m in d.get("models", []):
+        name = m.get("name", "").split(" (")[0] if not m.get("name", "").startswith("Orchestrator") else "Orchestrator"
+        if name == "Orchestrator":
+            orch += 1
+            continue
+        if name and name not in out:
+            out.append(name)
+    if orch:
+        out.insert(len([x for x in out if x.startswith("Gemini")]), f"Orchestrator ×{orch}")
+    return out
+
+
+def _claude_models():
+    """Claude Code 選單上的主要模型：讀 ~/.claude/cache/model-catalog 最新一份的 section=main。"""
+    try:
+        files = sorted((Path.home() / ".claude/cache/model-catalog").glob("*.json"), key=lambda f: f.stat().st_mtime)
+        ms = json.loads(files[-1].read_text(encoding="utf-8"))["catalog"]["config"]["models"]
+        return [m["name"] for m in ms if m.get("section") == "main" and m.get("name")]
+    except Exception:
+        return []
+
+
+def _local_models():
+    try:
+        p = subprocess.run(["/usr/local/bin/ollama", "list"], capture_output=True, text=True, timeout=20)
+        return [ln.split()[0] for ln in p.stdout.splitlines()[1:] if ln.strip()]
+    except Exception:
+        return []
+
+
+def refresh_models():
+    res = {"ok": True, "agy": _agy_models(), "claude": _claude_models(), "local": _local_models()}
+    with LOCK:
+        STATE["models"], STATE["models_at"] = res, int(time.time())
+
+
 def worker():
     while True:
         now = time.time()
@@ -112,6 +156,8 @@ def worker():
             refresh_claude()
         if now - STATE["colab_at"] > 1800:
             refresh_colab()
+        if now - STATE["models_at"] > 1800:
+            refresh_models()
         time.sleep(30)
 
 
@@ -119,8 +165,10 @@ def payload():
     with LOCK:
         c, cl = STATE["claude"], STATE["colab"]
         cat, clat = STATE["claude_at"], STATE["colab_at"]
+        mo = STATE["models"]
     return {"v": 1, "now": int(time.time()), "zone": zone(), "agy": antigravity(), "img": images(),
-            "claude": dict(c or {"ok": False}, at=cat), "colab": dict(cl or {"ok": False}, at=clat)}
+            "claude": dict(c or {"ok": False}, at=cat), "colab": dict(cl or {"ok": False}, at=clat),
+            "models": mo or {"ok": False}}
 
 
 class H(BaseHTTPRequestHandler):

@@ -532,7 +532,8 @@
         border-bottom: 0;
       }
     }
-  </style>
+  .update-note{border-left:3px solid currentColor;padding:.2em 0 .2em 1em;margin:1.5em 0;opacity:.95}
+</style>
 </head>
 <body>
 
@@ -627,7 +628,14 @@
           </figcaption>
         </figure>
       </div>
-    </section>
+    
+<div class="update-note">
+  <p><strong>2026-11-22 更新：多兩頁「可用模型」。</strong>資料服務另外讀三份本機快取：Antigravity 的模型盤點（capabilities.json，同一款不同推理檔位合併成一行）、Claude Code 選單的主要模型（~/.claude/cache/model-catalog）、本機 Ollama（<code>ollama list</code>），每 30 分鐘更新一次。畫面共六頁輪播。</p>
+  <p>也試過把 Claude 訂閱方案的剩餘額度放上來：官方只有 Claude Code「狀態列」指令拿得到這組數字，但桌面版 App 不執行狀態列，只有終端機版會，所以這項最後沒有做。</p>
+</div>
+<figure><img src="img/tqt_page4.png" alt="Antigravity 可用模型清單：Gemini 4 Neon、Carbon、Argon、Hydrogen、Gemini 3.8 Flash、Orchestrator ×3、Claude Opus 5.5、Claude Sonnet 5.5、GPT-OSS 120B"><figcaption>[PAGE 4] Antigravity 可用模型</figcaption></figure>
+<figure><img src="img/tqt_page5.png" alt="其他模型：Claude Code 的 Opus 5.5、Fable 5.2、Sonnet 5.5、Haiku 5.5，本機 Ollama 的 qwen3.5:9b、qwen2.5vl:3b"><figcaption>[PAGE 5] Claude Code 與本機 Ollama 模型</figcaption></figure>
+</section>
 
     <section id="architecture">
       <div class="sec-head">
